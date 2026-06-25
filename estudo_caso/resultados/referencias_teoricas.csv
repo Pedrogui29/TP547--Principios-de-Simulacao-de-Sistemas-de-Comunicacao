@@ -1,0 +1,3 @@
+cenario,mean_wait_A_teorico,mean_wait_B_teorico
+fifo_mm1_teorico,3.0,3.0
+prioridade_estrita_teorico,4.0,1.0
