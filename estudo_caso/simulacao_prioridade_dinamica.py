@@ -1,24 +1,3 @@
-"""
-Simulação de Fila M/M/1 com Prioridade Dinâmica por Idade
-Baseada no estilo dos códigos de aula do professor (queuemm1partidas.ipynb).
-
-Estilo do professor
--------------------
-- Pré-gera vetores de tempos entre chegadas e de serviço (np.random.exponential)
-- Usa índices k1a, k1b, k2 para percorrer esses vetores
-- Estado do sistema: t (tempo), ls (servidor 0/1), lq (tamanho da fila)
-- Loop principal: while k < n_partidas
-- Três tipos de evento: chegada A, chegada B, partida
-
-Extensões em relação ao código básico do professor
----------------------------------------------------
-- Duas classes de chegada (Classe A e Classe B)
-- Disciplinas: FIFO, prioridade estrita, prioridade dinâmica por envelhecimento
-- Distribuições de serviço: exponencial, determinística, Erlang-2
-- Capacidade de buffer finita opcional
-- Múltiplas replicações independentes com agregação de métricas
-"""
-
 import argparse
 import csv
 import math
@@ -31,9 +10,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-# ---------------------------------------------------------------------------
-# Simulação de uma replicação — estilo professor
-# ---------------------------------------------------------------------------
 
 def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
                       disciplina="dinamica", dist_servico="exponencial",
@@ -55,7 +31,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
 
     rng = np.random.RandomState(semente)
 
-    # ---- Pré-geração dos vetores (estilo professor) -------------------------
+    # ---- Pré-geração dos vetores-------------------------
     N = n_partidas * 40   # tamanho suficientemente grande
 
     int_a = rng.exponential(1.0 / lambda_a, N) if lambda_a > 0 else np.full(N, np.inf)
@@ -70,7 +46,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
     else:
         raise ValueError(f"Distribuição desconhecida: {dist_servico}")
 
-    # ---- Variáveis de estado (estilo professor) ----------------------------
+    # ---- Variáveis de estado ----------------------------
     t    = 0.0        # tempo atual
     ls   = 0          # servidor: 0 = livre, 1 = ocupado
     lq   = 0          # número de clientes aguardando na fila
@@ -79,7 +55,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
     k2   = 0          # índice no vetor de serviços (avança apenas ao iniciar serviço)
     k    = 0          # contador de partidas
 
-    # Tempos dos próximos eventos (estilo professor: ta, td)
+    # Tempos dos próximos eventos
     ta_a = int_a[k1a]   # próxima chegada Classe A
     ta_b = int_b[k1b]   # próxima chegada Classe B
     td   = np.inf        # próxima partida (servidor livre no início)
@@ -114,7 +90,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
     # ---- Funções auxiliares -----------------------------------------------
 
     def atualiza_areas(t_novo):
-        """Acumula integrais de área entre dois instantes (estilo professor)."""
+        """Acumula integrais de área entre dois instantes"""
         nonlocal t_ult, A_fila, A_sis, A_srv
         dt      = t_novo - t_ult
         A_fila += lq * dt
@@ -125,7 +101,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
     def inicia_servico(cliente):
         """
         Registra o início do serviço e agenda a partida.
-        O tempo de serviço é retirado do vetor srv[k2] (estilo professor).
+        O tempo de serviço é retirado do vetor srv[k2]
         """
         nonlocal ls, td, k2
         cliente[2] = t          # armazena t_inicio_srv para cálculo da espera
@@ -175,7 +151,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
         srv_cli = prox
         inicia_servico(prox)
 
-    # ---- Loop principal (estilo professor: while k < n_partidas) -----------
+    # ---- Loop principal -----------
     #
     # A cada iteração:
     #   1. Determina o próximo evento (chegada A, chegada B ou partida)
@@ -194,7 +170,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
         if ta_a <= ta_b and ta_a <= td:
             n_cheg_A += 1
             k1a  += 1
-            ta_a  = t + int_a[k1a]   # próxima chegada A (estilo professor)
+            ta_a  = t + int_a[k1a]   # próxima chegada A
 
             if capacidade is not None and (lq + ls) >= capacidade:
                 n_perd_A += 1        # descarta por buffer cheio
@@ -237,7 +213,7 @@ def simula_replicacao(lambda_a, lambda_b, mu, T_age, n_partidas, semente,
 
         # ---- Partida
         else:
-            k += 1   # conta a partida (estilo professor: k = k + 1)
+            k += 1   # conta a partida
 
             # Registra métricas do cliente que partiu
             if srv_cli is not None:
@@ -465,37 +441,6 @@ def grafico_armazenamento(resumos, out_dir):
     l1, n1 = ax1.get_legend_handles_labels(); l2, n2 = ax2.get_legend_handles_labels()
     ax1.legend(l1 + l2, n1 + n2, loc="upper right")
     fig.tight_layout(); fig.savefig(os.path.join(out_dir, "grafico_armazenamento.svg")); plt.close(fig)
-
-
-# ---------------------------------------------------------------------------
-# Resumo em Markdown
-# ---------------------------------------------------------------------------
-
-def escreve_resumo_md(resumos, refs, out_dir):
-    linhas = ["# Resumo dos Resultados da Simulação\n",
-              "## Validação Analítica\n"]
-    for r in refs:
-        linhas.append(f"- **{r['cenario']}**: espera A = `{r['mean_wait_A_teorico']:.4f}`, "
-                      f"espera B = `{r['mean_wait_B_teorico']:.4f}`")
-    linhas.append("")
-    grupos = {}
-    for r in resumos:
-        grupos.setdefault(r["grupo"], []).append(r)
-    for grupo, itens in grupos.items():
-        linhas.append(f"## {grupo}\n")
-        for r in itens:
-            linhas.append(f"### {r['cenario']}")
-            linhas.append(f"- espera A = `{r['mean_wait_A']:.4f}` ± {r['mean_wait_A_ci95']:.4f}")
-            linhas.append(f"- espera B = `{r['mean_wait_B']:.4f}` ± {r['mean_wait_B_ci95']:.4f}")
-            linhas.append(f"- espera total = `{r['mean_wait_total']:.4f}`")
-            linhas.append(f"- utilização = `{r['server_utilization']:.4f}`")
-            if r.get("promoted_fraction_A", 0) > 0:
-                linhas.append(f"- fração promovida A = `{r['promoted_fraction_A']*100:.2f}%`")
-            if r.get("drop_rate_total", 0) > 0:
-                linhas.append(f"- taxa de perda = `{r['drop_rate_total']*100:.2f}%`")
-            linhas.append("")
-    with open(os.path.join(out_dir, "resumo_resultados.md"), "w", encoding="utf-8") as f:
-        f.write("\n".join(linhas))
 
 
 # ---------------------------------------------------------------------------
